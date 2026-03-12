@@ -13,6 +13,9 @@ import tempfile
 import signal
 import time
 import pam
+import re
+import hashlib
+from datetime import datetime
 
 from flask import (
     Flask,
@@ -48,6 +51,8 @@ RVIZ_SESSION = {
     "rviz": None,
     "mode": None,
 }
+
+SIGNUP_REQUESTS_FILE = os.path.join("data", "signup_requests.json")
 
 
 def load_catalog():
@@ -547,6 +552,89 @@ def start_rviz_browser_session():
     except Exception as e:
         return {"ok": False, "message": "Failed to start RViz browser session: {}".format(e)}
 
+def load_signup_requests():
+    if not os.path.exists(SIGNUP_REQUESTS_FILE):
+        return []
+    with open(SIGNUP_REQUESTS_FILE, "r") as f:
+        return json.load(f)
+
+
+def save_signup_requests(data):
+    os.makedirs("data", exist_ok=True)
+    with open(SIGNUP_REQUESTS_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def username_is_valid(username):
+    """
+    Linux-safe username rule:
+    starts with lowercase letter or underscore,
+    then lowercase letters, digits, underscore, dash allowed.
+    """
+    return re.match(r"^[a-z_][a-z0-9_-]{0,31}$", username) is not None
+
+
+def linux_user_exists(username):
+    try:
+        pwd.getpwnam(username)
+        return True
+    except KeyError:
+        return False
+
+
+def get_user_groups(username):
+    try:
+        output = subprocess.check_output(["id", "-nG", username], universal_newlines=True)
+        return output.strip().split()
+    except Exception:
+        return []
+
+
+def is_admin_user(username):
+    groups = get_user_groups(username)
+    return ("sudo" in groups) or (username == "root")
+
+
+def hash_password_for_request(password):
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+
+
+def create_linux_user_account(username, password, full_name="", room_number="", work_phone="", home_phone="", other=""):
+    """
+    Create a real Linux user account.
+    This requires root or sudo privileges.
+    """
+    gecos = "{},{},{},{}".format(
+        full_name or username,
+        room_number or "",
+        work_phone or "",
+        home_phone or ""
+    )
+
+    useradd_cmd = ["useradd", "-m", "-s", "/bin/bash", "-c", gecos, username]
+
+    # If not root, use sudo
+    if os.geteuid() != 0:
+        useradd_cmd.insert(0, "sudo")
+
+    subprocess.run(useradd_cmd, check=True)
+
+    passwd_cmd = "echo '{}:{}' | {}".format(
+        username,
+        password,
+        "chpasswd" if os.geteuid() == 0 else "sudo chpasswd"
+    )
+    subprocess.run(passwd_cmd, shell=True, check=True)
+
+    if other:
+        comment_cmd = "usermod -a -c '{}' {}".format(
+            "{} | Other: {}".format(full_name or username, other).replace("'", ""),
+            username
+        )
+        if os.geteuid() != 0:
+            comment_cmd = "sudo " + comment_cmd
+        subprocess.run(comment_cmd, shell=True, check=True)
+
 
 @app.route("/", methods=["GET", "POST"])
 def login():
@@ -554,7 +642,7 @@ def login():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
-        if username and p.authenticate(username, password):
+        if username and p.authenticate(username, password, service="login"):
             session["user"] = username
             return redirect(url_for("home"))
 
@@ -567,10 +655,178 @@ def login():
 def home():
     if not require_login():
         return redirect(url_for("login"))
+    user = get_current_user()
     installed = load_installed_apps()
-    return render_template("home.html", user=get_current_user(), installed=installed)
+    return render_template("home.html", user=user, installed=installed, is_admin=is_admin_user(user))
+
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        retype_password = request.form.get("retype_password", "")
+        full_name = request.form.get("full_name", "").strip()
+        room_number = request.form.get("room_number", "").strip()
+        work_phone = request.form.get("work_phone", "").strip()
+        home_phone = request.form.get("home_phone", "").strip()
+        other = request.form.get("other", "").strip()
+
+        if not username or not password:
+            return render_template(
+                "signup.html",
+                error="Username and password are mandatory."
+            )
+
+        if not username_is_valid(username):
+            return render_template(
+                "signup.html",
+                error="Invalid username. Use lowercase letters, digits, underscore, and dash only."
+            )
+
+        if retype_password != password:
+            return render_template(
+                "signup.html",
+                error="Retype password must match password."
+            )
+
+        if linux_user_exists(username):
+            return render_template(
+                "signup.html",
+                error="That username already exists on this computer."
+            )
+
+        requests_data = load_signup_requests()
+
+        if any(x["username"] == username and x["status"] == "pending" for x in requests_data):
+            return render_template(
+                "signup.html",
+                error="A pending signup request already exists for this username."
+            )
+
+        # Full Name should be same as username
+        full_name = username
+
+        requests_data.append({
+            "id": str(int(time.time() * 1000)),
+            "username": username,
+            "password_plain": password,
+            "password_hash": hash_password_for_request(password),
+            "full_name": full_name,
+            "room_number": room_number,
+            "work_phone": work_phone,
+            "home_phone": home_phone,
+            "other": other,
+            "status": "pending",
+            "created_at": datetime.utcnow().isoformat() + "Z",
+            "reviewed_by": "",
+            "reviewed_at": ""
+        })
+
+        save_signup_requests(requests_data)
+
+        return render_template(
+            "signup.html",
+            success="Signup request submitted. A sudo user must approve it before the account is created."
+        )
+
+    return render_template("signup.html")
 
 
+@app.route("/admin/signup-requests")
+def admin_signup_requests():
+    if not require_login():
+        return redirect(url_for("login"))
+
+    user = get_current_user()
+    if not is_admin_user(user):
+        abort(403)
+
+    requests_data = load_signup_requests()
+    return render_template(
+        "admin_signup_requests.html",
+        user=user,
+        requests_data=requests_data
+    )
+
+
+@app.route("/admin/signup-requests/<request_id>/approve", methods=["POST"])
+def approve_signup_request(request_id):
+    if not require_login():
+        return redirect(url_for("login"))
+
+    admin_user = get_current_user()
+    if not is_admin_user(admin_user):
+        abort(403)
+
+    requests_data = load_signup_requests()
+    item = next((x for x in requests_data if x["id"] == request_id), None)
+
+    if not item:
+        flash("Request not found.")
+        return redirect(url_for("admin_signup_requests"))
+
+    if item["status"] != "pending":
+        flash("Request already processed.")
+        return redirect(url_for("admin_signup_requests"))
+
+    if linux_user_exists(item["username"]):
+        item["status"] = "rejected"
+        item["reviewed_by"] = admin_user
+        item["reviewed_at"] = datetime.utcnow().isoformat() + "Z"
+        save_signup_requests(requests_data)
+        flash("User already exists. Request rejected.")
+        return redirect(url_for("admin_signup_requests"))
+
+    try:
+        create_linux_user_account(
+            username=item["username"],
+            password=item["password_plain"],
+            full_name=item["full_name"],
+            room_number=item["room_number"],
+            work_phone=item["work_phone"],
+            home_phone=item["home_phone"],
+            other=item["other"]
+        )
+        item["status"] = "approved"
+        item["reviewed_by"] = admin_user
+        item["reviewed_at"] = datetime.utcnow().isoformat() + "Z"
+        save_signup_requests(requests_data)
+        flash("User account created successfully.")
+    except Exception as e:
+        flash("Approval failed: {}".format(e))
+
+    return redirect(url_for("admin_signup_requests"))
+
+
+@app.route("/admin/signup-requests/<request_id>/reject", methods=["POST"])
+def reject_signup_request(request_id):
+    if not require_login():
+        return redirect(url_for("login"))
+
+    admin_user = get_current_user()
+    if not is_admin_user(admin_user):
+        abort(403)
+
+    requests_data = load_signup_requests()
+    item = next((x for x in requests_data if x["id"] == request_id), None)
+
+    if not item:
+        flash("Request not found.")
+        return redirect(url_for("admin_signup_requests"))
+
+    if item["status"] != "pending":
+        flash("Request already processed.")
+        return redirect(url_for("admin_signup_requests"))
+
+    item["status"] = "rejected"
+    item["reviewed_by"] = admin_user
+    item["reviewed_at"] = datetime.utcnow().isoformat() + "Z"
+    save_signup_requests(requests_data)
+
+    flash("Signup request rejected.")
+    return redirect(url_for("admin_signup_requests"))
+
+    
 @app.route("/browser")
 def browser():
     if not require_login():
@@ -982,7 +1238,11 @@ def terminal_disconnect():
 
 if __name__ == "__main__":
     os.makedirs("data", exist_ok=True)
+
     if not os.path.exists(INSTALLED_APPS_FILE):
         save_installed_apps([])
+
+    if not os.path.exists(SIGNUP_REQUESTS_FILE):
+        save_signup_requests([])
 
     socketio.run(app, host="0.0.0.0", port=8080, debug=True)

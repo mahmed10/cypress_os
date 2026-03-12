@@ -5,6 +5,26 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>MiniOS Login</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <style>
+    .auth-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .secondary-link-btn {
+      display: inline-block;
+      text-decoration: none;
+      text-align: center;
+      border-radius: 14px;
+      background: #eef4ff;
+      color: #234;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 14px 18px;
+      min-width: 120px;
+    }
+  </style>
 </head>
 <body class="login-body">
   <div class="login-shell">
@@ -33,7 +53,10 @@
           <div class="error-box">{{ error }}</div>
         {% endif %}
 
-        <button type="submit" class="primary-btn">Login</button>
+        <div class="auth-actions">
+          <button type="submit" class="primary-btn">Login</button>
+          <a href="{{ url_for('signup') }}" class="secondary-link-btn">Signup</a>
+        </div>
       </form>
     </div>
   </div>

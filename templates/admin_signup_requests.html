@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Signup Requests</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <style>
+    .requests-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+
+    .requests-table th,
+    .requests-table td {
+      text-align: left;
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .requests-table th {
+      background: #f8fbff;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .mini-form {
+      display: inline-block;
+      margin-right: 8px;
+    }
+
+    .mini-btn {
+      border: none;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .approve-btn {
+      background: #e9f8ec;
+      color: #1c6a2b;
+    }
+
+    .reject-btn {
+      background: #fff1f1;
+      color: #b42318;
+    }
+
+    .status-pill {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .status-pending { background: #fff7e6; color: #9a6700; }
+    .status-approved { background: #e9f8ec; color: #1c6a2b; }
+    .status-rejected { background: #fff1f1; color: #b42318; }
+  </style>
+</head>
+<body class="app-body">
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div>
+        <div class="sidebar-brand">
+          <div class="brand-badge">M</div>
+          <div>
+            <h2>MiniOS</h2>
+            <span>{{ user }}</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a class="nav-item" href="{{ url_for('home') }}">🏠 Home</a>
+          <a class="nav-item active" href="{{ url_for('admin_signup_requests') }}">👤 Signup Requests</a>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <a class="logout-btn" href="{{ url_for('logout') }}">Logout</a>
+      </div>
+    </aside>
+
+    <main class="main-panel">
+      <header class="topbar">
+        <h1>Signup Requests</h1>
+        <p>Approve or reject pending account requests</p>
+      </header>
+
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          {% for msg in messages %}
+            <div class="notice-box">{{ msg }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <div class="table-wrap">
+        <table class="requests-table">
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Full Name</th>
+              <th>Room</th>
+              <th>Work Phone</th>
+              <th>Home Phone</th>
+              <th>Other</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in requests_data %}
+            <tr>
+              <td>{{ item.username }}</td>
+              <td>{{ item.full_name }}</td>
+              <td>{{ item.room_number }}</td>
+              <td>{{ item.work_phone }}</td>
+              <td>{{ item.home_phone }}</td>
+              <td>{{ item.other }}</td>
+              <td>
+                <span class="status-pill status-{{ item.status }}">{{ item.status }}</span>
+              </td>
+              <td>{{ item.created_at }}</td>
+              <td>
+                {% if item.status == "pending" %}
+                <form method="POST" action="{{ url_for('approve_signup_request', request_id=item.id) }}" class="mini-form">
+                  <button type="submit" class="mini-btn approve-btn">Approve</button>
+                </form>
+                <form method="POST" action="{{ url_for('reject_signup_request', request_id=item.id) }}" class="mini-form">
+                  <button type="submit" class="mini-btn reject-btn">Reject</button>
+                </form>
+                {% else %}
+                Processed by {{ item.reviewed_by or "N/A" }}
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

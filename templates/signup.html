@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Signup Request</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="login-body">
+  <div class="login-shell" style="max-width: 620px;">
+    <div class="login-brand">
+      <div class="brand-badge">M</div>
+      <div>
+        <h1>MiniOS</h1>
+        <p>Request a new computer account</p>
+      </div>
+    </div>
+
+    <div class="login-card">
+      <div class="login-card-header">
+        <h2>Signup</h2>
+        <p>This request must be approved by a sudo user.</p>
+      </div>
+
+      <form method="POST" class="login-form">
+        <label>Username *</label>
+        <input type="text" name="username" required>
+
+        <label>Password *</label>
+        <input type="password" name="password" required>
+
+        <label>Retype Password *</label>
+        <input type="password" name="retype_password" required>
+
+        <label>Full Name</label>
+        <input type="text" name="full_name" placeholder="Will be set same as username">
+
+        <label>Room Number []</label>
+        <input type="text" name="room_number">
+
+        <label>Work Phone []</label>
+        <input type="text" name="work_phone">
+
+        <label>Home Phone []</label>
+        <input type="text" name="home_phone">
+
+        <label>Other []</label>
+        <input type="text" name="other">
+
+        {% if error %}
+          <div class="error-box">{{ error }}</div>
+        {% endif %}
+
+        {% if success %}
+          <div class="notice-box">{{ success }}</div>
+        {% endif %}
+
+        <div style="display:flex; gap:12px; margin-top:10px;">
+          <button type="submit" class="primary-btn">Submit Request</button>
+          <a href="{{ url_for('login') }}" class="secondary-link-btn" style="text-decoration:none; display:inline-block; padding:14px 18px; border-radius:14px; background:#eef4ff; color:#234; font-weight:700;">Back</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

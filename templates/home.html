@@ -41,6 +41,7 @@
         <p>Your self-hosted dashboard</p>
       </header>
 
+
       <section class="app-grid">
         <a class="app-tile" href="{{ url_for('files') }}">
           <div class="tile-icon">📁</div>
@@ -83,6 +84,14 @@
           <div class="tile-title">Installed Apps</div>
           <div class="tile-desc">Launch and manage installed apps</div>
         </a>
+
+        {% if is_admin %}
+        <a class="app-tile" href="{{ url_for('admin_signup_requests') }}">
+          <div class="tile-icon">👤</div>
+          <div class="tile-title">Signup Requests</div>
+          <div class="tile-desc">Approve or reject new account requests</div>
+        </a>
+        {% endif %}
       </section>
 
       <section class="content-card">
