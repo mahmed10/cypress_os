@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RViz Launcher</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <style>
+    .rviz-card {
+      margin-top: 22px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    .rviz-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .rviz-box {
+      background: #f8fbff;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+    }
+
+    .rviz-label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .rviz-value {
+      font-size: 16px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .rviz-actions {
+      margin-top: 20px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .status-box {
+      margin-top: 18px;
+      border-radius: 16px;
+      padding: 14px 16px;
+      background: #eef7ff;
+      border: 1px solid #cfe4ff;
+      color: #1f5db5;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 900px) {
+      .rviz-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body class="app-body">
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div>
+        <div class="sidebar-brand">
+          <div class="brand-badge">M</div>
+          <div>
+            <h2>MiniOS</h2>
+            <span>{{ user }}</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a class="nav-item" href="{{ url_for('home') }}">🏠 Home</a>
+          <a class="nav-item" href="{{ url_for('files') }}">📁 Files</a>
+          <a class="nav-item" href="{{ url_for('terminal') }}">⌨️ Terminal</a>
+          <a class="nav-item" href="{{ url_for('editor') }}">📝 Code Editor</a>
+          <a class="nav-item active" href="{{ url_for('rviz_page') }}">🧭 RViz</a>
+          <a class="nav-item" href="{{ url_for('browser') }}">🌐 Browser</a>
+          <a class="nav-item" href="{{ url_for('app_store') }}">🛍️ App Store</a>
+          <a class="nav-item" href="{{ url_for('installed') }}">📦 Installed Apps</a>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <a class="logout-btn" href="{{ url_for('logout') }}">Logout</a>
+      </div>
+    </aside>
+
+    <main class="main-panel">
+      <header class="topbar">
+        <h1>RViz Launcher</h1>
+        <p>Detect ROS and launch RViz locally or in the browser</p>
+      </header>
+
+      <section class="rviz-card">
+        <div class="section-title">ROS Detection</div>
+
+        <div class="rviz-grid">
+          <div class="rviz-box">
+            <div class="rviz-label">Detected ROS version</div>
+            <div class="rviz-value" id="rosVersion">Checking...</div>
+          </div>
+
+          <div class="rviz-box">
+            <div class="rviz-label">Detected distribution</div>
+            <div class="rviz-value" id="rosDistro">Checking...</div>
+          </div>
+
+          <div class="rviz-box">
+            <div class="rviz-label">Graphics session</div>
+            <div class="rviz-value" id="guiStatus">Checking...</div>
+          </div>
+
+          <div class="rviz-box">
+            <div class="rviz-label">Display</div>
+            <div class="rviz-value" id="displayValue">Checking...</div>
+          </div>
+        </div>
+
+        <div class="rviz-actions">
+          <button class="editor-button" onclick="refreshStatus()">Refresh</button>
+          <button class="editor-button" onclick="launchRViz()">Open RViz Locally</button>
+          <button class="editor-button primary" onclick="launchRVizBrowser()">Open RViz in Browser</button>
+          <button class="editor-button" onclick="stopRVizBrowser()">Stop Browser Session</button>
+        </div>
+
+        <div class="status-box" id="statusBox">Ready.</div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    async function refreshStatus() {
+      const res = await fetch("/api/rviz-status");
+      const data = await res.json();
+
+      document.getElementById("rosVersion").textContent =
+        data.ros_found ? ("ROS " + data.ros_version) : "Not found";
+
+      document.getElementById("rosDistro").textContent =
+        data.distro || "N/A";
+
+      document.getElementById("guiStatus").textContent =
+        data.gui_ok ? "Desktop display available" : "No desktop display";
+
+      document.getElementById("displayValue").textContent =
+        data.display || data.wayland || "N/A";
+
+      let msg = [];
+      msg.push("ROS: " + data.ros_message);
+      msg.push("GUI: " + data.gui_message);
+      msg.push("Browser session running: " + (data.browser_session_running ? "Yes" : "No"));
+      document.getElementById("statusBox").textContent = msg.join("\n");
+    }
+
+    async function launchRViz() {
+      const res = await fetch("/api/open-rviz", { method: "POST" });
+      const data = await res.json();
+      document.getElementById("statusBox").textContent = data.message || "Done.";
+      refreshStatus();
+    }
+
+    async function launchRVizBrowser() {
+      const res = await fetch("/api/open-rviz-browser", { method: "POST" });
+      const data = await res.json();
+      document.getElementById("statusBox").textContent = data.message || "Done.";
+      if (data.ok && data.url) {
+        window.open("/rviz-browser", "_blank");
+      }
+      refreshStatus();
+    }
+
+    async function stopRVizBrowser() {
+      const res = await fetch("/api/stop-rviz-browser", { method: "POST" });
+      const data = await res.json();
+      document.getElementById("statusBox").textContent = data.message || "Stopped.";
+      refreshStatus();
+    }
+
+    refreshStatus();
+  </script>
+</body>
+</html>

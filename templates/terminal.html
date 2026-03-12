@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Terminal</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm/css/xterm.css">
+  <style>
+    .terminal-shell {
+      margin-top: 22px;
+      background: #0f1720;
+      border-radius: 24px;
+      border: 1px solid #1d2a38;
+      box-shadow: var(--shadow);
+      padding: 18px;
+      min-height: 70vh;
+    }
+
+    #terminal {
+      width: 100%;
+      height: 68vh;
+    }
+  </style>
+</head>
+<body class="app-body">
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div>
+        <div class="sidebar-brand">
+          <div class="brand-badge">M</div>
+          <div>
+            <h2>MiniOS</h2>
+            <span>{{ user }}</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a class="nav-item" href="{{ url_for('home') }}">🏠 Home</a>
+          <a class="nav-item" href="{{ url_for('files') }}">📁 Files</a>
+          <a class="nav-item active" href="{{ url_for('terminal') }}">⌨️ Terminal</a>
+          <a class="nav-item" href="{{ url_for('browser') }}">🌐 Browser</a>
+          <a class="nav-item" href="{{ url_for('app_store') }}">🛍️ App Store</a>
+          <a class="nav-item" href="{{ url_for('installed') }}">📦 Installed Apps</a>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <a class="logout-btn" href="{{ url_for('logout') }}">Logout</a>
+      </div>
+    </aside>
+
+    <main class="main-panel">
+      <header class="topbar">
+        <h1>Terminal</h1>
+        <p>Run shell commands from your browser</p>
+      </header>
+
+      <section class="terminal-shell">
+        <div id="terminal"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm/lib/xterm.js"></script>
+  <script>
+    const socket = io();
+
+    const term = new Terminal({
+      cursorBlink: true,
+      fontSize: 14,
+      convertEol: true,
+      scrollback: 3000,
+      theme: {
+        background: "#0f1720",
+        foreground: "#e6edf3"
+      }
+    });
+
+    term.open(document.getElementById("terminal"));
+    term.focus();
+
+    function getRows() {
+      return Math.max(24, Math.floor(window.innerHeight * 0.68 / 17));
+    }
+
+    function getCols() {
+      return Math.max(80, Math.floor(window.innerWidth * 0.72 / 8.4));
+    }
+
+    socket.on("connect", () => {
+      socket.emit("terminal_connect", {
+        rows: getRows(),
+        cols: getCols()
+      });
+    });
+
+    socket.on("terminal_output", (msg) => {
+      term.write(msg.data);
+    });
+
+    term.onData((data) => {
+      socket.emit("terminal_input", { data: data });
+    });
+
+    window.addEventListener("resize", () => {
+      socket.emit("terminal_resize", {
+        rows: getRows(),
+        cols: getCols()
+      });
+    });
+  </script>
+</body>
+</html>

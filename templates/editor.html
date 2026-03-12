@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Code Editor</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <style>
+    .editor-page {
+      display: grid;
+      grid-template-rows: auto auto 1fr 260px;
+      gap: 16px;
+      min-height: calc(100vh - 56px);
+    }
+
+    .editor-toolbar,
+    .editor-meta,
+    .editor-output {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    .editor-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .toolbar-left,
+    .toolbar-right {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .editor-input,
+    .editor-select {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 14px;
+      background: #fbfdff;
+      min-width: 220px;
+    }
+
+    .editor-button {
+      border: none;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      background: #eef4ff;
+      color: #234;
+    }
+
+    .editor-button.primary {
+      background: linear-gradient(135deg, var(--primary), #6a9cff);
+      color: white;
+    }
+
+    .editor-button.success {
+      background: #eaf8ec;
+      color: #1d6b2d;
+    }
+
+    .editor-shell {
+      background: #1e1e1e;
+      border-radius: 20px;
+      border: 1px solid #2b2b2b;
+      overflow: hidden;
+      min-height: 520px;
+    }
+
+    #editor {
+      width: 100%;
+      height: 520px;
+    }
+
+    .editor-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .editor-output {
+      background: #0f1720;
+      color: #e6edf3;
+      border: 1px solid #1d2a38;
+    }
+
+    .output-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    #output {
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      max-height: 180px;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body class="app-body">
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div>
+        <div class="sidebar-brand">
+          <div class="brand-badge">M</div>
+          <div>
+            <h2>MiniOS</h2>
+            <span>{{ user }}</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a class="nav-item" href="{{ url_for('home') }}">🏠 Home</a>
+          <a class="nav-item" href="{{ url_for('files') }}">📁 Files</a>
+          <a class="nav-item" href="{{ url_for('terminal') }}">⌨️ Terminal</a>
+          <a class="nav-item active" href="{{ url_for('editor') }}">📝 Code Editor</a>
+          <a class="nav-item" href="{{ url_for('browser') }}">🌐 Browser</a>
+          <a class="nav-item" href="{{ url_for('app_store') }}">🛍️ App Store</a>
+          <a class="nav-item" href="{{ url_for('installed') }}">📦 Installed Apps</a>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <a class="logout-btn" href="{{ url_for('logout') }}">Logout</a>
+      </div>
+    </aside>
+
+    <main class="main-panel">
+      <header class="topbar">
+        <h1>Code Editor</h1>
+        <p>Sublime-like editor with run support</p>
+      </header>
+
+      <section class="editor-page">
+        <div class="editor-toolbar">
+          <div class="toolbar-left">
+            <input id="filePath" class="editor-input" type="text" placeholder="/home/user/test.py" value="{{ current_path }}">
+            <button class="editor-button" onclick="openFile()">Open</button>
+            <button class="editor-button success" onclick="saveFile()">Save</button>
+          </div>
+
+          <div class="toolbar-right">
+            <select id="language" class="editor-select">
+              <option value="python">Python</option>
+              <option value="javascript">JavaScript</option>
+              <option value="bash">Bash</option>
+            </select>
+            <button class="editor-button primary" onclick="runCode()">Run</button>
+          </div>
+        </div>
+
+        <div class="editor-meta">
+          <div><strong>Home:</strong> {{ home }}</div>
+          <div><strong>Current file:</strong> <span id="currentFileLabel">{{ current_path or 'Unsaved buffer' }}</span></div>
+        </div>
+
+        <div class="editor-shell">
+          <div id="editor"></div>
+        </div>
+
+        <div class="editor-output">
+          <div class="output-header">
+            <strong>Output</strong>
+            <button class="editor-button" onclick="clearOutput()">Clear</button>
+          </div>
+          <div id="output">Ready.</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+  <script>
+    let editor;
+
+    const initialContent = {{ content|tojson }};
+
+    function detectLanguageFromPath(path) {
+      const p = (path || "").toLowerCase();
+      if (p.endsWith(".py")) return "python";
+      if (p.endsWith(".js")) return "javascript";
+      if (p.endsWith(".sh")) return "bash";
+      return document.getElementById("language").value;
+    }
+
+    function setOutput(text) {
+      document.getElementById("output").textContent = text;
+    }
+
+    function clearOutput() {
+      setOutput("");
+    }
+
+    require.config({
+      paths: {
+        vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs"
+      }
+    });
+
+    require(["vs/editor/editor.main"], function () {
+      editor = monaco.editor.create(document.getElementById("editor"), {
+        value: initialContent || "",
+        language: detectLanguageFromPath(document.getElementById("filePath").value),
+        theme: "vs-dark",
+        automaticLayout: true,
+        fontSize: 15,
+        minimap: { enabled: true },
+        roundedSelection: true,
+        scrollBeyondLastLine: false,
+        wordWrap: "off"
+      });
+
+      document.getElementById("language").value = detectLanguageFromPath(document.getElementById("filePath").value);
+
+      document.getElementById("language").addEventListener("change", function () {
+        monaco.editor.setModelLanguage(editor.getModel(), this.value);
+      });
+    });
+
+    document.getElementById("filePath").addEventListener("input", function () {
+      const lang = detectLanguageFromPath(this.value);
+      document.getElementById("language").value = lang;
+      if (editor) {
+        monaco.editor.setModelLanguage(editor.getModel(), lang);
+      }
+    });
+
+    async function openFile() {
+      const path = document.getElementById("filePath").value.trim();
+      if (!path) {
+        setOutput("Enter a file path first.");
+        return;
+      }
+
+      const res = await fetch("/api/read-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path })
+      });
+
+      const data = await res.json();
+      if (!data.ok) {
+        setOutput("Open failed: " + data.error);
+        return;
+      }
+
+      editor.setValue(data.content);
+      const lang = detectLanguageFromPath(data.path);
+      document.getElementById("language").value = lang;
+      monaco.editor.setModelLanguage(editor.getModel(), lang);
+      document.getElementById("currentFileLabel").textContent = data.path;
+      setOutput("Opened: " + data.path);
+    }
+
+    async function saveFile() {
+      const path = document.getElementById("filePath").value.trim();
+      if (!path) {
+        setOutput("Enter a file path before saving.");
+        return;
+      }
+
+      const res = await fetch("/api/save-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path,
+          content: editor.getValue()
+        })
+      });
+
+      const data = await res.json();
+      if (!data.ok) {
+        setOutput("Save failed: " + data.error);
+        return;
+      }
+
+      document.getElementById("currentFileLabel").textContent = data.path;
+      setOutput("Saved: " + data.path);
+    }
+
+    async function runCode() {
+      const language = document.getElementById("language").value;
+      setOutput("Running...");
+
+      const res = await fetch("/api/run-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          language,
+          content: editor.getValue()
+        })
+      });
+
+      const data = await res.json();
+
+      let output = "";
+      output += "Return code: " + data.returncode + "\\n\\n";
+
+      if (data.stdout) {
+        output += "[stdout]\\n" + data.stdout + "\\n";
+      }
+
+      if (data.stderr) {
+        output += "[stderr]\\n" + data.stderr + "\\n";
+      }
+
+      if (!data.stdout && !data.stderr) {
+        output += "(no output)";
+      }
+
+      setOutput(output);
+    }
+  </script>
+</body>
+</html>

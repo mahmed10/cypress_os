@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MiniOS Login</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="login-body">
+  <div class="login-shell">
+    <div class="login-brand">
+      <div class="brand-badge">M</div>
+      <div>
+        <h1>MiniOS</h1>
+        <p>CasaOS-style personal dashboard</p>
+      </div>
+    </div>
+
+    <div class="login-card">
+      <div class="login-card-header">
+        <h2>Sign in</h2>
+        <p>Use your Linux computer account</p>
+      </div>
+
+      <form method="POST" class="login-form">
+        <label>Username</label>
+        <input type="text" name="username" required>
+
+        <label>Password</label>
+        <input type="password" name="password" required>
+
+        {% if error %}
+          <div class="error-box">{{ error }}</div>
+        {% endif %}
+
+        <button type="submit" class="primary-btn">Login</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

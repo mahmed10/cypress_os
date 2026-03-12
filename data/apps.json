@@ -1,0 +1,42 @@
+[
+  {
+    "id": "filebrowser",
+    "name": "File Browser",
+    "icon": "📁",
+    "description": "A simple web file manager for your files.",
+    "image": "filebrowser/filebrowser",
+    "port": 8091,
+    "volume": "/home",
+    "command_type": "filebrowser"
+  },
+  {
+    "id": "portainer",
+    "name": "Portainer",
+    "icon": "🐳",
+    "description": "Docker container manager.",
+    "image": "portainer/portainer-ce:latest",
+    "port": 9000,
+    "volume": "/var/run/docker.sock:/var/run/docker.sock",
+    "command_type": "portainer"
+  },
+  {
+    "id": "jellyfin",
+    "name": "Jellyfin",
+    "icon": "🎬",
+    "description": "Personal media server.",
+    "image": "jellyfin/jellyfin:latest",
+    "port": 8096,
+    "volume": "/home:/media",
+    "command_type": "basic"
+  },
+  {
+    "id": "codeserver",
+    "name": "Code Server",
+    "icon": "💻",
+    "description": "VS Code in the browser.",
+    "image": "codercom/code-server:latest",
+    "port": 8443,
+    "volume": "/home:/home",
+    "command_type": "basic"
+  }
+]

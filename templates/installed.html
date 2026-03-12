@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Installed Apps</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="app-body">
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div>
+        <div class="sidebar-brand">
+          <div class="brand-badge">M</div>
+          <div>
+            <h2>MiniOS</h2>
+            <span>{{ user }}</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a class="nav-item" href="{{ url_for('home') }}">🏠 Home</a>
+          <a class="nav-item" href="{{ url_for('files') }}">📁 Files</a>
+          <a class="nav-item" href="{{ url_for('terminal') }}">⌨️ Terminal</a>
+          <a class="nav-item" href="{{ url_for('browser') }}">🌐 Browser</a>
+          <a class="nav-item" href="{{ url_for('app_store') }}">🛍️ App Store</a>
+          <a class="nav-item active" href="{{ url_for('installed') }}">📦 Installed Apps</a>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <a class="logout-btn" href="{{ url_for('logout') }}">Logout</a>
+      </div>
+    </aside>
+
+    <main class="main-panel">
+      <header class="topbar">
+        <h1>Installed Apps</h1>
+        <p>Launch your installed services</p>
+      </header>
+
+      {% if apps %}
+        <section class="app-grid">
+          {% for app in apps %}
+            <a class="app-tile" href="{{ app.url }}" target="_blank">
+              <div class="tile-icon">{{ app.icon }}</div>
+              <div class="tile-title">{{ app.name }}</div>
+              <div class="tile-desc">{{ app.url }}</div>
+            </a>
+          {% endfor %}
+        </section>
+      {% else %}
+        <div class="empty-box">No apps installed yet.</div>
+      {% endif %}
+    </main>
+  </div>
+</body>
+</html>

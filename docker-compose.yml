@@ -1,0 +1,15 @@
+version: "3"
+
+services:
+
+  mini-os:
+
+    build: .
+
+    ports:
+      - "8080:8080"
+
+    volumes:
+      - /home:/home
+
+    privileged: true

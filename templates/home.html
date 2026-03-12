@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MiniOS Home</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="app-body">
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div>
+        <div class="sidebar-brand">
+          <div class="brand-badge">M</div>
+          <div>
+            <h2>MiniOS</h2>
+            <span>Welcome {{ user }}</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a class="nav-item active" href="{{ url_for('home') }}">🏠 Home</a>
+          <a class="nav-item" href="{{ url_for('files') }}">📁 Files</a>
+          <a class="nav-item" href="{{ url_for('terminal') }}">⌨️ Terminal</a>
+          <a class="nav-item" href="{{ url_for('editor') }}">📝 Code Editor</a>
+          <a class="nav-item" href="{{ url_for('rviz_page') }}">🧭 RViz</a>
+          <a class="nav-item" href="{{ url_for('browser') }}">🌐 Browser</a>
+          <a class="nav-item" href="{{ url_for('app_store') }}">🛍️ App Store</a>
+          <a class="nav-item" href="{{ url_for('installed') }}">📦 Installed Apps</a>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <a class="logout-btn" href="{{ url_for('logout') }}">Logout</a>
+      </div>
+    </aside>
+
+    <main class="main-panel">
+      <header class="topbar">
+        <h1>Home</h1>
+        <p>Your self-hosted dashboard</p>
+      </header>
+
+      <section class="app-grid">
+        <a class="app-tile" href="{{ url_for('files') }}">
+          <div class="tile-icon">📁</div>
+          <div class="tile-title">Files</div>
+          <div class="tile-desc">Browse your computer files</div>
+        </a>
+
+        <a class="app-tile" href="{{ url_for('terminal') }}">
+          <div class="tile-icon">⌨️</div>
+          <div class="tile-title">Terminal</div>
+          <div class="tile-desc">Run shell commands</div>
+        </a>
+
+        <a class="app-tile" href="{{ url_for('editor') }}">
+          <div class="tile-icon">📝</div>
+          <div class="tile-title">Code Editor</div>
+          <div class="tile-desc">Write and run code</div>
+        </a>
+
+        <a class="app-tile" href="{{ url_for('rviz_page') }}">
+          <div class="tile-icon">🧭</div>
+          <div class="tile-title">RViz</div>
+          <div class="tile-desc">Open RViz or RViz2 if ROS is installed</div>
+        </a>
+
+        <a class="app-tile" href="{{ url_for('browser') }}">
+          <div class="tile-icon">🌐</div>
+          <div class="tile-title">Browser</div>
+          <div class="tile-desc">Open installed local services</div>
+        </a>
+
+        <a class="app-tile" href="{{ url_for('app_store') }}">
+          <div class="tile-icon">🛍️</div>
+          <div class="tile-title">App Store</div>
+          <div class="tile-desc">Install apps with one click</div>
+        </a>
+
+        <a class="app-tile" href="{{ url_for('installed') }}">
+          <div class="tile-icon">📦</div>
+          <div class="tile-title">Installed Apps</div>
+          <div class="tile-desc">Launch and manage installed apps</div>
+        </a>
+      </section>
+
+      <section class="content-card">
+        <div class="section-title">Recently Installed</div>
+        {% if installed %}
+          <div class="grid-list">
+            {% for app in installed %}
+              <a class="file-card" href="{{ app.url }}" target="_blank">
+                <div class="file-icon">{{ app.icon }}</div>
+                <div class="file-meta">
+                  <div class="file-name">{{ app.name }}</div>
+                  <div class="file-sub">{{ app.url }}</div>
+                </div>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-box">No apps installed yet.</div>
+        {% endif %}
+      </section>
+    </main>
+  </div>
+</body>
+</html>
